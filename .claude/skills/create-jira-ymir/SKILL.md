@@ -74,10 +74,21 @@ Ask the user to review. Do **not** create the issue until they confirm. Incorpor
 ### Step 5: Create the issue
 
 ```bash
-jira issue create -p PACKIT --component jotnar -t <type> -s "<summary>" --body "<description>" --no-input
+timeout 10 jira issue create -p PACKIT --component jotnar -t <type> -s "<summary>" --body "<description>" --no-input
 ```
 
+Always wrap `jira issue create` (and other `jira` CLI calls) in `timeout 10` — it can hang indefinitely (observed: 100s+ with no output) even when auth is fine and `--no-input` is set. This seems environmental, not caused by body content or length, and a short timeout surfaces it fast instead of burning minutes waiting. If a call hits the timeout:
+1. Do not assume it failed. Run `jira issue list -p PACKIT -q '"component" = jotnar'` and check whether an issue with your summary already landed before retrying — a client-side timeout can still mean the server-side create succeeded, and blindly retrying risks a duplicate.
+2. If nothing landed, retry once more with `timeout 10`. A hang is usually transient — a trivial retry with the same short timeout typically succeeds.
+3. If a retry creates a throwaway placeholder issue (e.g. from a diagnostic call with a dummy summary/body), **do not delete it** — repurpose it in place with `jira issue edit <ISSUE-KEY> -s "<real summary>" -C jotnar --body "<real description>" --no-input`. Deleting issues is not the workflow here; editing a stray placeholder into the real card is.
+
 Report the resulting issue URL back to the user.
+
+### Step 6: Attachments (optional)
+
+`jira-cli` has no `attach` subcommand. If the user wants a local file (e.g. an investigation doc) attached to the issue:
+- Default to asking the user to attach it manually via the Jira web UI.
+- Only attempt a direct Jira REST API upload (via `curl`, using the same token/auth jira-cli uses) if the user explicitly asks for that instead — locating or using that token needs their sign-off first, since it involves reading credential material.
 
 ## Notes
 
