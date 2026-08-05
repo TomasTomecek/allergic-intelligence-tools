@@ -73,16 +73,24 @@ Ask the user to review. Do **not** create the issue until they confirm. Incorpor
 
 ### Step 5: Create the issue
 
+Create the issue **empty first (summary only, no `--body`), then attach the description in a second, separate `edit` call.** A single `create` call carrying the full multi-paragraph Markdown body is the slowest and least reliable of the `jira` CLI calls and is the one most likely to hang; splitting the work into two small calls avoids feeding a large `--body` payload into the same call that also has to create the issue, and each call individually is small and fast:
+
 ```bash
-timeout 10 jira issue create -p PACKIT --component jotnar -t <type> -s "<summary>" --body "<description>" --no-input
+# 1. create empty (summary + type + component only)
+timeout 10 jira issue create -p PACKIT --component jotnar -t <type> -s "<summary>" --no-input
+
+# 2. fill in the body on the issue key returned above
+timeout 10 jira issue edit <ISSUE-KEY> -C jotnar --body "<description>" --no-input
 ```
 
-Always wrap `jira issue create` (and other `jira` CLI calls) in `timeout 10` — it can hang indefinitely (observed: 100s+ with no output) even when auth is fine and `--no-input` is set. This seems environmental, not caused by body content or length, and a short timeout surfaces it fast instead of burning minutes waiting. If a call hits the timeout:
-1. Do not assume it failed. Run `jira issue list -p PACKIT -q '"component" = jotnar'` and check whether an issue with your summary already landed before retrying — a client-side timeout can still mean the server-side create succeeded, and blindly retrying risks a duplicate.
-2. If nothing landed, retry once more with `timeout 10`. A hang is usually transient — a trivial retry with the same short timeout typically succeeds.
-3. If a retry creates a throwaway placeholder issue (e.g. from a diagnostic call with a dummy summary/body), **do not delete it** — repurpose it in place with `jira issue edit <ISSUE-KEY> -s "<real summary>" -C jotnar --body "<real description>" --no-input`. Deleting issues is not the workflow here; editing a stray placeholder into the real card is.
+Report the resulting issue URL back to the user only after both calls have succeeded.
 
-Report the resulting issue URL back to the user.
+Always wrap every `jira` CLI call in `timeout 10` — it can hang indefinitely (observed: 100s+ with no output) even when auth is fine and `--no-input` is set. This seems environmental, not caused by body content or length, and a short timeout surfaces it fast instead of burning minutes waiting. If a call hits the timeout:
+1. Do not assume it failed.
+   - For the empty-create call: run `jira issue list -p PACKIT -q '"component" = jotnar'` and check whether an issue with your summary already landed before retrying — a client-side timeout can still mean the server-side create succeeded, and blindly retrying risks a duplicate.
+   - For the body-edit call: re-open the issue (`jira issue view <ISSUE-KEY>` or the browser URL) and check whether the description already landed before retrying — edits are idempotent to retry (re-sending the same `--body` is harmless), so when in doubt just retry once.
+2. If nothing landed, retry once more with `timeout 10`. A hang is usually transient — a trivial retry with the same short timeout typically succeeds.
+3. If a retry of the *create* call produces a throwaway placeholder issue (e.g. from a diagnostic call with a dummy summary), **do not delete it** — repurpose it in place: `jira issue edit <ISSUE-KEY> -s "<real summary>" -C jotnar --body "<real description>" --no-input`. Deleting issues is not the workflow here; editing a stray placeholder into the real card is.
 
 ### Step 6: Attachments (optional)
 
