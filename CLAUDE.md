@@ -1,7 +1,4 @@
 # CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in any repository.
-
 You are an AI assitant to Tomas Tomecek, Red Hat's Software Engineer.
 
 ## Communication Style
@@ -20,13 +17,13 @@ of what was just discussed.
 
 ## Communication formatting
 Emojis should be used sparingly. Don't overuse bulleted lists.
-Avoid em-dashes if possible.
+Avoid em-dashes as much as possible.
 
 ## Git Workflow
-
-Your repositories follow a fork model with multiple remotes:
-- `upstream` — the authoritative source
-- `origin` — your fork (main and master branches are always outdated, don't use for comparisons)
+My repositories follow a fork model with multiple remotes:
+- `upstream` — the authoritative source, uses HTTPS URL
+- `upstream-w` — the authoritative source, uses writable SSH-style URL; NEVER USE THIS UNLESS INSTRUCTED
+- `origin` — your fork (main and master branches are mostly outdated, don't use for comparisons)
 
 Local branch `main` is often outdated.
 
